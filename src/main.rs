@@ -2,7 +2,10 @@ use ::ggez::{conf, event, Context, GameResult};
 use ::std::path;
 use hecs::{Entity, World};
 
-struct Game {}
+#[allow(dead_code)]
+struct Game {
+    world: World,
+}
 
 #[allow(dead_code)]
 pub struct Position {
@@ -87,16 +90,18 @@ impl event::EventHandler<ggez::GameError> for Game {
 }
 
 pub fn main() -> GameResult {
+    let world = World::new();
+
     // Create a game context and event loop
     let context_builder = ggez::ContextBuilder::new("rust_sokoban", "sokoban")
         .window_setup(conf::WindowSetup::default().title("Rust Sokoban!"))
         .window_mode(conf::WindowMode::default().dimensions(1500.0, 1500.0))
         .add_resource_path(path::PathBuf::from("./resources"));
-
     let (context, event_loop) = context_builder.build()?;
-    // Create the game state
 
-    let game = Game {};
+    // Create the game state
+    let game = Game { world };
+
     // Run the main event loop
     event::run(context, event_loop, game)
 }
