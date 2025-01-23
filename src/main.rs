@@ -15,6 +15,7 @@ struct Game {
 }
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct Position {
     x: u8,
     y: u8,
@@ -85,30 +86,66 @@ pub fn create_player(world: &mut World, position: Position) -> Entity {
 
 // Initialize the level
 pub fn initialize_level(world: &mut World) {
-    create_player(
-        world,
-        Position {
-            x: 0,
-            y: 0,
-            z: 0, // we will get the z from the factory functions
-        },
-    );
-    create_wall(
-        world,
-        Position {
-            x: 1,
-            y: 0,
-            z: 0, // we will get the z from the factory functions
-        },
-    );
-    create_box(
-        world,
-        Position {
-            x: 2,
-            y: 0,
-            z: 0, // we will get the z from the factory functions
-        },
-    );
+    const MAP: &str = "
+    N N W W W W W W
+    W W W . . . . W
+    W . . . B . . W
+    W . . . . . . W
+    W . P . . . . W
+    W . . . . . . W
+    W . . S . . . W
+    W . . . . . . W
+    W W W W W W W W
+    ";
+
+    load_map(world, MAP.to_string());
+}
+
+pub fn load_map(world: &mut World, map_string: String) {
+    // read all lines
+    let rows: Vec<&str> = map_string.trim().split('\n').map(|x| x.trim()).collect();
+
+    for (y, row) in rows.iter().enumerate() {
+        println!("(y:{y} row:{row})");
+        let columns: Vec<&str> = row.split(' ').collect();
+
+        for (x, column) in columns.iter().enumerate() {
+            println!("(x:{x} column:{column})");
+            // Create the position at which to create something on the map
+            let position = Position {
+                x: x as u8,
+                y: y as u8,
+                z: 0, // we will get the z from the factory functions
+            };
+            //NOTE: If you don't have the following code it won't work as expected
+            let position_clone = position.clone();
+
+            // Figure out what object we should create
+            match *column {
+                "." => {
+                    create_floor(world, position);
+                }
+                "W" => {
+                    create_floor(world, position);
+                    create_wall(world, position_clone);
+                }
+                "P" => {
+                    create_floor(world, position);
+                    create_player(world, position_clone);
+                }
+                "B" => {
+                    create_floor(world, position);
+                    create_box(world, position_clone);
+                }
+                "S" => {
+                    create_floor(world, position);
+                    create_box_spot(world, position_clone);
+                }
+                "N" => (),
+                c => panic!("unrecognized map item {}", c),
+            }
+        }
+    }
 }
 
 //Here is the implementation of the rendering system. It does a few things:
