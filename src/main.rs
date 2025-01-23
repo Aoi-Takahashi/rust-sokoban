@@ -1,6 +1,13 @@
-use ::ggez::{conf, event, Context, GameResult};
+use ::ggez::{
+    conf, event,
+    graphics::{self, DrawParam, Image},
+    Context, GameResult,
+};
 use ::std::path;
+use ggez::glam::Vec2;
 use hecs::{Entity, World};
+
+const TILE_WIDTH: f32 = 32.0;
 
 #[allow(dead_code)]
 struct Game {
@@ -75,22 +82,92 @@ pub fn create_player(world: &mut World, position: Position) -> Entity {
         Player {},
     ))
 }
+
+// Initialize the level
+pub fn initialize_level(world: &mut World) {
+    create_player(
+        world,
+        Position {
+            x: 0,
+            y: 0,
+            z: 0, // we will get the z from the factory functions
+        },
+    );
+    create_wall(
+        world,
+        Position {
+            x: 1,
+            y: 0,
+            z: 0, // we will get the z from the factory functions
+        },
+    );
+    create_box(
+        world,
+        Position {
+            x: 2,
+            y: 0,
+            z: 0, // we will get the z from the factory functions
+        },
+    );
+}
+
+//Here is the implementation of the rendering system. It does a few things:
+// ・clear the screen (ensuring we don't keep any of the state rendered on the previous frame)
+// ・get all entities with a renderable component and sort them by z (we do this in order to ensure we can render things on top of each other, for example the player should be above the floor, otherwise we wouldn't be able to see them)
+// ・iterate through sorted entities and render each of them as an image
+// ・finally, present to the screen
+
+pub fn run_rendering(world: &World, context: &mut Context) {
+    // 1.Clearing the screen (this gives us the background colour)
+    let mut canvas =
+        graphics::Canvas::from_frame(context, graphics::Color::from([0.95, 0.95, 0.95, 1.0]));
+
+    // 2.Get all the renderables with their positions and sort by the position z
+    // This will allow us to have entities layered visually.
+    let mut query = world.query::<(&Position, &Renderable)>();
+    let mut rendering_data: Vec<(Entity, (&Position, &Renderable))> = query.into_iter().collect();
+    rendering_data.sort_by_key(|&k| k.1 .0.z); //NOTE: 「k.1.0.z」 は ネストしたTupleのIndexアクセス
+
+    // 3.Iterate through all pairs of positions & renderables, load the image
+    // and draw it at the specified position.
+    for (_, (position, renderable)) in rendering_data.iter() {
+        // Load the image
+        let image = Image::from_path(context, renderable.path.clone()).unwrap();
+        let x = position.x as f32 * TILE_WIDTH;
+        let y = position.y as f32 * TILE_WIDTH;
+
+        // draw
+        let draw_params = DrawParam::new().dest(Vec2::new(x, y));
+        canvas.draw(&image, draw_params);
+    }
+
+    // 4.Finally, present the canvas, this will actually display everything
+    // on the screen.
+    canvas.finish(context).expect("expected to present");
+}
+
 // This is the main event loop. ggez tells us to implement
 // two things: 1.updating 2.rendering
 impl event::EventHandler<ggez::GameError> for Game {
-    fn update(&mut self, _ctx: &mut Context) -> Result<(), ggez::GameError> {
+    fn update(&mut self, _context: &mut Context) -> Result<(), ggez::GameError> {
         // TODO: update game logic here
         Ok(())
     }
 
-    fn draw(&mut self, _ctx: &mut Context) -> Result<(), ggez::GameError> {
+    fn draw(&mut self, context: &mut Context) -> Result<(), ggez::GameError> {
         // TODO: update draw here
+        {
+            run_rendering(&self.world, context);
+        }
         Ok(())
     }
 }
 
 pub fn main() -> GameResult {
-    let world = World::new();
+    //NOTE: following code incorrect?
+    // let world = World::new();
+    let mut world = World::new();
+    initialize_level(&mut world);
 
     // Create a game context and event loop
     let context_builder = ggez::ContextBuilder::new("rust_sokoban", "sokoban")
