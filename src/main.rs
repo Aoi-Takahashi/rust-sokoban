@@ -1,13 +1,16 @@
-use ::ggez::{
+use ggez::{
     conf, event,
+    glam::Vec2,
     graphics::{self, DrawParam, Image},
+    input::keyboard::KeyCode,
     Context, GameResult,
 };
-use ::std::path;
-use ggez::glam::Vec2;
 use hecs::{Entity, World};
+use std::{collections::HashMap, path};
 
 const TILE_WIDTH: f32 = 32.0;
+const MAP_HEIGHT: u8 = 9;
+const MAP_WIDTH: u8 = 8;
 
 #[allow(dead_code)]
 struct Game {
@@ -35,6 +38,10 @@ pub struct Box {}
 
 pub struct BoxSpot {}
 
+pub struct Movable;
+
+pub struct Immovable;
+
 pub fn create_wall(world: &mut World, position: Position) -> Entity {
     world.spawn((
         Position { z: 10, ..position },
@@ -42,6 +49,7 @@ pub fn create_wall(world: &mut World, position: Position) -> Entity {
             path: "/images/wall.png".to_string(),
         },
         Wall {},
+        Immovable {},
     ))
 }
 
@@ -61,6 +69,7 @@ pub fn create_box(world: &mut World, position: Position) -> Entity {
             path: "/images/box.png".to_string(),
         },
         Box {},
+        Movable {},
     ))
 }
 
@@ -81,6 +90,7 @@ pub fn create_player(world: &mut World, position: Position) -> Entity {
             path: "/images/player.png".to_string(),
         },
         Player {},
+        Movable {},
     ))
 }
 
@@ -148,6 +158,93 @@ pub fn load_map(world: &mut World, map_string: String) {
     }
 }
 
+fn run_input(world: &World, context: &mut Context) {
+    let mut to_move: Vec<(Entity, KeyCode)> = Vec::new();
+
+    // get all the movables and immovables
+    let mov: HashMap<(u8, u8), Entity> = world
+        .query::<(&Position, &Movable)>()
+        .iter()
+        .map(|t| ((t.1 .0.x, t.1 .0.y), t.0))
+        .collect::<HashMap<_, _>>();
+    let immov: HashMap<(u8, u8), Entity> = world
+        .query::<(&Position, &Immovable)>()
+        .iter()
+        .map(|t| ((t.1 .0.x, t.1 .0.y), t.0))
+        .collect::<HashMap<_, _>>();
+
+    for (_, (position, _player)) in world.query::<(&mut Position, &Player)>().iter() {
+        if context.keyboard.is_key_repeated() {
+            continue;
+        }
+
+        // Now iterate through current position to the end of the map
+        // on the correct axis and check what needs to move.
+        let key = if context.keyboard.is_key_just_pressed(KeyCode::Up) {
+            KeyCode::Up
+        } else if context.keyboard.is_key_just_pressed(KeyCode::Down) {
+            KeyCode::Down
+        } else if context.keyboard.is_key_just_pressed(KeyCode::Left) {
+            KeyCode::Left
+        } else if context.keyboard.is_key_just_pressed(KeyCode::Right) {
+            KeyCode::Right
+        } else {
+            continue;
+        };
+
+        let (start, end, is_x) = match key {
+            KeyCode::Up => (position.y, 0, false),
+            KeyCode::Down => (position.y, MAP_HEIGHT - 1, false),
+            KeyCode::Left => (position.x, 0, true),
+            KeyCode::Right => (position.x, MAP_WIDTH - 1, true),
+            _ => continue,
+        };
+
+        let range = if start < end {
+            (start..=end).collect::<Vec<_>>()
+        } else {
+            (end..=start).rev().collect::<Vec<_>>()
+        };
+
+        for x_or_y in range {
+            let pos = if is_x {
+                (x_or_y, position.y)
+            } else {
+                (position.x, x_or_y)
+            };
+
+            // find a movable
+            // if it exists, we try to move it and continue
+            // if it doesn't exist, we continue and try to find an immovable instead
+            match mov.get(&pos) {
+                Some(entity) => to_move.push((*entity, key)),
+                None => {
+                    // find an immovable
+                    // if it exists, we need to stop and not move anything
+                    // if it doesn't exist, we stop because we found a gap
+                    match immov.get(&pos) {
+                        Some(_id) => to_move.clear(),
+                        None => break,
+                    }
+                }
+            }
+        }
+    }
+
+    // Now actually move what needs to be moved
+    for (entity, key) in to_move {
+        let mut position = world.get::<&mut Position>(entity).unwrap();
+
+        match key {
+            KeyCode::Up => position.y -= 1,
+            KeyCode::Down => position.y += 1,
+            KeyCode::Left => position.x -= 1,
+            KeyCode::Right => position.x += 1,
+            _ => (),
+        }
+    }
+}
+
 //Here is the implementation of the rendering system. It does a few things:
 // ・clear the screen (ensuring we don't keep any of the state rendered on the previous frame)
 // ・get all entities with a renderable component and sort them by z (we do this in order to ensure we can render things on top of each other, for example the player should be above the floor, otherwise we wouldn't be able to see them)
@@ -186,8 +283,11 @@ pub fn run_rendering(world: &World, context: &mut Context) {
 // This is the main event loop. ggez tells us to implement
 // two things: 1.updating 2.rendering
 impl event::EventHandler<ggez::GameError> for Game {
-    fn update(&mut self, _context: &mut Context) -> Result<(), ggez::GameError> {
+    fn update(&mut self, context: &mut Context) -> Result<(), ggez::GameError> {
         // TODO: update game logic here
+        {
+            run_input(&self.world, context);
+        }
         Ok(())
     }
 
