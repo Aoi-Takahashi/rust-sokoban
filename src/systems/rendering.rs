@@ -6,7 +6,7 @@
 
 use ggez::{
     glam::Vec2,
-    graphics::{self, DrawParam, Image},
+    graphics::{self, Canvas, Color, DrawParam, Image, PxScale, Text, TextFragment},
     Context,
 };
 use hecs::{Entity, World};
@@ -14,6 +14,7 @@ use hecs::{Entity, World};
 use crate::{
     components::{Position, Renderable},
     constants::TILE_WIDTH,
+    resources::Gameplay,
 };
 
 pub fn run_rendering(world: &World, context: &mut Context) {
@@ -40,7 +41,24 @@ pub fn run_rendering(world: &World, context: &mut Context) {
         canvas.draw(&image, draw_params);
     }
 
+    // Render any text
+    let mut query = world.query::<&Gameplay>();
+    let gameplay = query.iter().next().unwrap().1;
+    draw_text(&mut canvas, &gameplay.state.to_string(), 525.0, 80.0);
+    draw_text(&mut canvas, &gameplay.moves_count.to_string(), 525.0, 100.0);
+
     // 4.Finally, present the canvas, this will actually display everything
     // on the screen.
     canvas.finish(context).expect("expected to present");
+}
+
+pub fn draw_text(canvas: &mut Canvas, text_string: &str, x: f32, y: f32) {
+    let text = Text::new(TextFragment {
+        text: text_string.to_string(),
+        color: Some(Color::new(0.0, 0.0, 0.0, 1.0)),
+        scale: Some(PxScale::from(20.0)),
+        ..Default::default()
+    });
+
+    canvas.draw(&text, Vec2::new(x, y));
 }

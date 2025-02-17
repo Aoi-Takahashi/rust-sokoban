@@ -1,4 +1,7 @@
-use crate::components::{Box, BoxSpot, Immovable, Movable, Player, Position, Renderable, Wall};
+use crate::{
+    components::{Box, BoxSpot, Immovable, Movable, Player, Position, Renderable, Wall},
+    resources::Gameplay,
+};
 use hecs::{Entity, World};
 
 pub fn create_wall(world: &mut World, position: Position) -> Entity {
@@ -51,4 +54,8 @@ pub fn create_player(world: &mut World, position: Position) -> Entity {
         Player {},
         Movable {},
     ))
+}
+
+pub fn create_gameplay(world: &mut World) -> Entity {
+    world.spawn((Gameplay::default(),))
 }

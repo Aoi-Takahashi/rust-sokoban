@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use crate::{
     components::{Immovable, Movable, Player, Position},
     constants::{MAP_HEIGHT, MAP_WIDTH},
+    resources::Gameplay,
 };
 
 pub fn run_input(world: &World, context: &mut Context) {
@@ -78,6 +79,13 @@ pub fn run_input(world: &World, context: &mut Context) {
                 }
             }
         }
+    }
+
+    // Update gameplay moves
+    if !to_move.is_empty() {
+        let mut query = world.query::<&mut Gameplay>();
+        let gameplay = query.iter().next().unwrap().1;
+        gameplay.moves_count += 1;
     }
 
     // Now actually move what needs to be moved

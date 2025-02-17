@@ -2,13 +2,11 @@ mod components;
 mod constants;
 mod entities;
 mod map;
+mod resources;
+mod systems;
 use ggez::{conf, event, Context, GameResult};
 use hecs::World;
-use map::initialize_level;
 use std::path;
-mod systems;
-use systems::input::run_input;
-use systems::rendering::run_rendering;
 
 struct Game {
     world: World,
@@ -20,7 +18,7 @@ impl event::EventHandler<ggez::GameError> for Game {
     fn update(&mut self, context: &mut Context) -> Result<(), ggez::GameError> {
         // TODO: update game logic here
         {
-            run_input(&self.world, context);
+            systems::input::run_input(&self.world, context);
         }
         Ok(())
     }
@@ -28,17 +26,16 @@ impl event::EventHandler<ggez::GameError> for Game {
     fn draw(&mut self, context: &mut Context) -> Result<(), ggez::GameError> {
         // TODO: update draw here
         {
-            run_rendering(&self.world, context);
+            systems::rendering::run_rendering(&self.world, context);
         }
         Ok(())
     }
 }
 
 pub fn main() -> GameResult {
-    //NOTE: following code incorrect?
-    // let world = World::new();
     let mut world = World::new();
-    initialize_level(&mut world);
+    map::initialize_level(&mut world);
+    entities::create_gameplay(&mut world);
 
     // Create a game context and event loop
     let context_builder = ggez::ContextBuilder::new("rust_sokoban", "sokoban")
