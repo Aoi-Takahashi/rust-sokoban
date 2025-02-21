@@ -1,5 +1,5 @@
 use crate::{
-    components::{Box, BoxSpot, Immovable, Movable, Player, Position, Renderable, Wall},
+    components::{Box, BoxColor, BoxSpot, Immovable, Movable, Player, Position, Renderable, Wall},
     resources::Gameplay,
 };
 use hecs::{Entity, World};
@@ -24,24 +24,24 @@ pub fn create_floor(world: &mut World, position: Position) -> Entity {
     ))
 }
 
-pub fn create_box(world: &mut World, position: Position) -> Entity {
+pub fn create_box(world: &mut World, position: Position, color: BoxColor) -> Entity {
     world.spawn((
         Position { z: 10, ..position },
         Renderable {
-            path: "/images/box.png".to_string(),
+            path: format!("/images/box_{}.png", color),
         },
-        Box {},
+        Box { color },
         Movable {},
     ))
 }
 
-pub fn create_box_spot(world: &mut World, position: Position) -> Entity {
+pub fn create_box_spot(world: &mut World, position: Position, color: BoxColor) -> Entity {
     world.spawn((
         Position { z: 9, ..position },
         Renderable {
-            path: "/images/box_spot.png".to_string(),
+            path: format!("/images/box_{}.png", color),
         },
-        BoxSpot {},
+        BoxSpot { color },
     ))
 }
 
